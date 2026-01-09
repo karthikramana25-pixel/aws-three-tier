@@ -1,0 +1,68 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 3️⃣ Setup Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # =========================
+      # WEB TIER
+      # =========================
+      - name: Build & Push Web Tier
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web-tier
+          file: ./web-tier/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/web-tier:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/web-tier:${{ github.sha }}
+
+      # =========================
+      # APP TIER
+      # =========================
+      - name: Build & Push App Tier
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app-tier
+          file: ./app-tier/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/app-tier:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/app-tier:${{ github.sha }}
+
+      # =========================
+      # DB TIER
+      # =========================
+      - name: Build & Push DB Tier
+        uses: docker/build-push-action@v5
+        with:
+          context: ./db-tier
+          file: ./db-tier/Dockerfile   # ✅ FIXED
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/db-tier:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/db-tier:${{ github.sha }}

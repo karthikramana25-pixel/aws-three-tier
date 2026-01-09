@@ -1,0 +1,45 @@
+version: "3.9"
+
+networks:
+  three-tier-net:
+    driver: bridge
+
+services:
+
+  mysql:
+    image: karthik26/mysql-custom:v5
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123
+      MYSQL_DATABASE: webappdb
+    ports:
+      - "3306:3306"
+    networks:
+      - three-tier-net
+
+  backend:
+    image: karthik26/backend-app:v9
+    container_name: backend-app
+    environment:
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PWD: admin123
+      DB_DATABASE: webappdb
+    depends_on:
+      - mysql
+    ports:
+      - "4000:4000"
+    networks:
+      - three-tier-net
+
+  frontend:
+    image: karthik26/react-web-app:v27
+    container_name: frontend-app
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"      # HTTP
+      - "8443:443"     # HTTPS
+    networks:
+      - three-tier-net
+
