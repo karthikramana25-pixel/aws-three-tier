@@ -1,32 +1,11 @@
-# --------------------------------------------------------
-# Use Node.js 16 (same as your NVM setup)
-# --------------------------------------------------------
-FROM node:16-slim
+FROM node:18-alpine
 
-# Create app directory
 WORKDIR /app
 
-# --------------------------------------------------------
-# Install pm2 globally
-# --------------------------------------------------------
-RUN npm install -g pm2
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# --------------------------------------------------------
-# Copy package files and install dependencies
-# --------------------------------------------------------
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
-
-# --------------------------------------------------------
-# Copy application source code
-# --------------------------------------------------------
 COPY . .
 
-# Expose backend port
 EXPOSE 4000
-
-# --------------------------------------------------------
-# Start the application using PM2
-# --------------------------------------------------------
-CMD ["pm2-runtime", "index.js"]
-
+CMD ["node", "index.js"]
