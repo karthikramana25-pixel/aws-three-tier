@@ -66,7 +66,7 @@ function deleteTransactionById(id, callback){
 }
 
 
-module.exports = {addTransaction ,getAllTransactions, deleteAllTransactions, deleteAllTransactions, findTransactionById, deleteTransactionById};
+module.exports = { addTransaction, getAllTransactions, deleteAllTransactions, findTransactionById, deleteTransactionById };
 
 
 

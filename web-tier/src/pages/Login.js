@@ -27,17 +27,33 @@ function Login({ history }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
 
-    // TEMP (until backend is connected)
-    if (username && password) {
-      localStorage.setItem("token", "data.token");
-      history.push("/home");
-    } else {
-      alert("Enter credentials");
+    if (!username || !password) {
+      return alert("Enter credentials");
     }
-  };
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return alert(err.message || 'Login failed');
+      }
+
+      const data = await res.json();
+      localStorage.setItem('token', data.token);
+      history.push('/home');
+    } catch (err) {
+      console.error(err);
+      alert('Login failed (network error)');
+    }
+  }; 
 
   return (
     <Page>

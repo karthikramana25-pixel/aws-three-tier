@@ -21,23 +21,30 @@
           }
 
         populateData(){
-            this.fetch_retry('/api/transaction',3)
-            .then(res => res.json())
+            const token = localStorage.getItem('token');
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            this.fetch_retry('/api/transaction',3, { headers })
+            .then(res => {
+              if (!res.ok) { throw new Error('Unauthorized or network error (' + res.status + ')'); }
+              return res.json();
+            })
             .then((data) => {
               this.setState({ transactions : data.result });
               console.log("state set");
               console.log(this.state.transactions);
             })
-            .catch(console.log);
+            .catch(err => {
+              console.error('populateData error', err);
+            });
         }  
 
-        async fetch_retry(url, n){
+        async fetch_retry(url, n, options = {}){
             try {
-                return await fetch(url)
+                return await fetch(url, options)
             } catch(err) {
                 if (n === 1) throw err;
                 await new Promise(resolve => setTimeout(resolve, 1000)); 
-                return await this.fetch_retry(url, n - 1);
+                return await this.fetch_retry(url, n - 1, options);
             }
         };
 
@@ -56,12 +63,18 @@
          }
 
         handleButtonClickDel(){
+           const token = localStorage.getItem('token');
            const requestOptions = {
-               method: 'DELETE'
+               method: 'DELETE',
+               headers: { Authorization: token ? `Bearer ${token}` : '' }
            }
            fetch('/api/transaction', requestOptions)
-           .then(response => response.json())
+           .then(response => {
+               if (!response.ok) throw new Error('Delete failed ('+response.status+')');
+               return response.json();
+           })
            .then(data => this.populateData())
+           .catch(err => console.error(err));
 
            this.setState({text_amt : "", text_desc:"",transaction:[]});
 
@@ -70,15 +83,20 @@
          handleButtonClick(){
              console.log(this.state.text_amt);
              console.log(this.state.text_desc);
+             const token = localStorage.getItem('token');
             const requestOptions = {
                 method: 'POST',
-                headers: {'Content-Type':'application/json'},
+                headers: {'Content-Type':'application/json', Authorization: token ? `Bearer ${token}` : ''},
                 body: JSON.stringify({"amount":this.state.text_amt, "desc" :this.state.text_desc})
             }
             
             fetch('/api/transaction', requestOptions)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error('Add failed ('+response.status+')');
+                return response.json();
+            })
             .then(data => this.populateData())
+            .catch(err => console.error(err));
             
             this.setState({text_amt : "", text_desc:""});
 

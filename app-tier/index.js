@@ -55,7 +55,7 @@ app.post("/auth/register", async (req, res) => {
 
   try {
     const hash = await bcrypt.hash(password, 10);
-    const sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+    const sql = "INSERT INTO users (username, password_hash) VALUES (?, ?)";
 
     con.query(sql, [username, hash], (err) => {
       if (err)
@@ -79,14 +79,7 @@ app.post("/auth/login", (req, res) => {
     if (result.length === 0)
       return res.status(401).json({ message: "Invalid user" });
 
-    const valid = await bcrypt.compare(password, result[0].password);
-    if (!valid)
-      return res.status(401).json({ message: "Wrong password" });
-
-    const token = jwt.sign(
-      { userId: result[0].id },
-      JWT_SECRET,
-      { expiresIn: "1h" }
+    const valid = await bcrypt.compare(password, result[0].password_hash);
     );
 
     res.json({ token });
