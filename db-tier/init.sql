@@ -16,3 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 );
+INSERT INTO transactions (amount, description)
+VALUES (123.45, 'Payment for order #123');
+INSERT INTO users (username, password_hash)
+VALUES ('alice', '$2b$10$EXAMPLEbcryptHashHere...');
