@@ -80,7 +80,7 @@ app.post("/auth/login", (req, res) => {
       return res.status(401).json({ message: "Invalid user" });
 
     const valid = await bcrypt.compare(password, result[0].password_hash);
-    );
+    
 
     res.json({ token });
   });
