@@ -38,7 +38,8 @@ function authMiddleware(req, res, next) {
 
   const token = authHeader.split(" ")[1];
   try {
-    jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
     next();
   } catch (err) {
     res.sendStatus(403);
@@ -71,16 +72,26 @@ app.post("/auth/register", async (req, res) => {
 // LOGIN
 app.post("/auth/login", (req, res) => {
   const { username, password } = req.body;
+  console.debug(`[auth/login] Login attempt for username=${username}`);
 
   const sql = "SELECT * FROM users WHERE username = ?";
   con.query(sql, [username], async (err, result) => {
-    if (err) return res.sendStatus(500);
+    if (err) {
+      console.error("[auth/login] DB error:", err);
+      return res.sendStatus(500);
+    }
 
-    if (result.length === 0)
+    if (!result || result.length === 0) {
+      console.debug("[auth/login] User not found:", username);
       return res.status(401).json({ message: "Invalid user" });
+    }
 
     const valid = await bcrypt.compare(password, result[0].password_hash);
-    
+    console.debug("[auth/login] Password valid:", !!valid, "for user:", username);
+    if (!valid) return res.status(401).json({ message: "Invalid password" });
+
+    const token = jwt.sign({ id: result[0].id, username: result[0].username }, JWT_SECRET, { expiresIn: "1h" });
+    console.debug("[auth/login] Login success for user:", username, "id:", result[0].id);
 
     res.json({ token });
   });
@@ -90,7 +101,7 @@ app.post("/auth/login", (req, res) => {
    HEALTH CHECK
 ================================ */
 app.get("/health", (req, res) => {
-  res.json("This is the health check");
+  res.status(200).json({ status: "ok" });
 });
 
 /* ===============================
@@ -145,11 +156,12 @@ app.delete("/transaction", authMiddleware, (req, res) => {
 });
 
 // DELETE ONE TRANSACTION
-app.delete("/transaction/id", authMiddleware, (req, res) => {
+app.delete("/transaction/:id", authMiddleware, (req, res) => {
   try {
-    transactionService.deleteTransactionById(req.body.id, () => {
+    const id = req.params.id;
+    transactionService.deleteTransactionById(id, () => {
       res.status(200).json({
-        message: `transaction with id ${req.body.id} deleted`
+        message: `transaction with id ${id} deleted`
       });
     });
   } catch (err) {
@@ -158,9 +170,13 @@ app.delete("/transaction/id", authMiddleware, (req, res) => {
 });
 
 // GET ONE TRANSACTION
-app.get("/transaction/id", authMiddleware, (req, res) => {
+app.get("/transaction/:id", authMiddleware, (req, res) => {
   try {
-    transactionService.findTransactionById(req.body.id, (result) => {
+    const id = req.params.id;
+    transactionService.findTransactionById(id, (result) => {
+      if (!result || result.length === 0) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
       res.status(200).json({
         id: result[0].id,
         amount: result[0].amount,
