@@ -1,9 +1,6 @@
 name: Build Three Tier Images
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       build_web:
@@ -100,6 +97,7 @@ jobs:
           echo "Resolved db tag: ${{ steps.parse_tags.outputs.db_tag }}"
 
       - name: Preview image names
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           echo "Previewing final image names to be built:"
           echo "Web: ${{ secrets.DOCKERHUB_USERNAME }}/web-tier:${{ (github.event_name == 'workflow_dispatch' && steps.parse_tags.outputs.web_tag) || github.event.inputs.tag_web || 'latest' }}"
@@ -108,7 +106,7 @@ jobs:
 
       # ---------------- WEB TIER ----------------
       - name: Build Web Tier
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_web == 'true' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_web == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: ./web-tier
@@ -119,7 +117,7 @@ jobs:
 
       # ---------------- APP TIER ----------------
       - name: Build App Tier
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_app == 'true' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_app == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: ./app-tier
@@ -130,7 +128,7 @@ jobs:
 
       # ---------------- DB TIER ----------------
       - name: Build DB Tier
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_db == 'true' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_db == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: ./db-tier
