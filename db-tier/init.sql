@@ -18,5 +18,3 @@ CREATE TABLE IF NOT EXISTS users (
 );
 INSERT INTO transactions (amount, description)
 VALUES (123.45, 'Payment for order #123');
-INSERT INTO users (username, password_hash)
-VALUES ('alice', '$2b$10$EXAMPLEbcryptHashHere...');
