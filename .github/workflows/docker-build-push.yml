@@ -99,6 +99,13 @@ jobs:
           echo "Resolved app tag: ${{ steps.parse_tags.outputs.app_tag }}"
           echo "Resolved db tag: ${{ steps.parse_tags.outputs.db_tag }}"
 
+      - name: Preview image names
+        run: |
+          echo "Previewing final image names to be built:"
+          echo "Web: ${{ secrets.DOCKERHUB_USERNAME }}/web-tier:${{ (github.event_name == 'workflow_dispatch' && steps.parse_tags.outputs.web_tag) || github.event.inputs.tag_web || 'latest' }}"
+          echo "App: ${{ secrets.DOCKERHUB_USERNAME }}/app-tier:${{ (github.event_name == 'workflow_dispatch' && steps.parse_tags.outputs.app_tag) || github.event.inputs.tag_app || 'latest' }}"
+          echo "DB: ${{ secrets.DOCKERHUB_USERNAME }}/db-tier:${{ (github.event_name == 'workflow_dispatch' && steps.parse_tags.outputs.db_tag) || github.event.inputs.tag_db || 'latest' }}"
+
       # ---------------- WEB TIER ----------------
       - name: Build Web Tier
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_web == 'true' }}
