@@ -29,6 +29,18 @@ const con = mysql.createConnection({
   database: dbcreds.DB_DATABASE
 });
 
+con.connect((err) => {
+  if (err) {
+    console.error("[DB] Connection error:", err);
+  } else {
+    console.debug("[DB] Connected to", dbcreds.DB_DATABASE, "at", dbcreds.DB_HOST);
+  }
+});
+
+con.on("error", (err) => {
+  console.error("[DB] Error event:", err);
+});
+
 /* ===============================
    AUTH MIDDLEWARE
 ================================ */
@@ -53,18 +65,23 @@ function authMiddleware(req, res, next) {
 // REGISTER
 app.post("/auth/register", async (req, res) => {
   const { username, password } = req.body;
+  console.debug(`[auth/register] Register attempt for username=${username}`);
 
   try {
     const hash = await bcrypt.hash(password, 10);
     const sql = "INSERT INTO users (username, password_hash) VALUES (?, ?)";
 
-    con.query(sql, [username, hash], (err) => {
-      if (err)
+    con.query(sql, [username, hash], (err, result) => {
+      if (err) {
+        console.error("[auth/register] DB error:", err);
         return res.status(400).json({ message: "User already exists" });
+      }
 
-      res.json({ message: "User registered successfully" });
+      console.debug("[auth/register] User registered:", username, "id:", result.insertId);
+      res.status(201).json({ message: "User registered successfully" });
     });
   } catch (err) {
+    console.error("[auth/register] Registration failed:", err);
     res.status(500).json({ message: "Registration failed" });
   }
 });
