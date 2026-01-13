@@ -4,6 +4,36 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      build_web:
+        description: 'Build and push web-tier'
+        required: false
+        default: 'true'
+      tag_web:
+        description: 'Docker tag for web-tier (e.g. latest or v1.2.3)'
+        required: false
+        default: 'latest'
+      tags:
+        description: 'Comma-separated tags, e.g. web=v1,app=v2,db=latest'
+        required: false
+        default: ''
+      build_app:
+        description: 'Build and push app-tier'
+        required: false
+        default: 'true'
+      tag_app:
+        description: 'Docker tag for app-tier (e.g. latest or v1.2.3)'
+        required: false
+        default: 'latest'
+      build_db:
+        description: 'Build and push db-tier'
+        required: false
+        default: 'true'
+      tag_db:
+        description: 'Docker tag for db-tier (e.g. latest or v1.2.3)'
+        required: false
+        default: 'latest'
 
 jobs:
   build:
@@ -22,32 +52,82 @@ jobs:
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Selected targets
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "Build web=${{ github.event.inputs.build_web }} (tag input=${{ github.event.inputs.tag_web }})"
+          echo "Build app=${{ github.event.inputs.build_app }} (tag input=${{ github.event.inputs.tag_app }})"
+          echo "Build db=${{ github.event.inputs.build_db }} (tag input=${{ github.event.inputs.tag_db }})"
+          echo "Raw tags input: '${{ github.event.inputs.tags }}'"
+
+      - name: Parse tags
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        id: parse_tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAGS_INPUT="${{ github.event.inputs.tags }}"
+          echo "Raw tags: '$TAGS_INPUT'"
+          WEB_TAG="${{ github.event.inputs.tag_web || 'latest' }}"
+          APP_TAG="${{ github.event.inputs.tag_app || 'latest' }}"
+          DB_TAG="${{ github.event.inputs.tag_db || 'latest' }}"
+          if [ -n "$TAGS_INPUT" ]; then
+            IFS=',' read -ra PAIRS <<< "$TAGS_INPUT"
+            for pair in "${PAIRS[@]}"; do
+              # trim
+              pair=$(echo "$pair" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+              key="${pair%%=*}"
+              val="${pair#*=}"
+              key=$(echo "$key" | tr '[:upper:]' '[:lower:]' | xargs)
+              val=$(echo "$val" | xargs)
+              case "$key" in
+                web) WEB_TAG="$val" ;;
+                app) APP_TAG="$val" ;;
+                db) DB_TAG="$val" ;;
+                *) echo "Ignoring unknown tag key: $key" ;;
+              esac
+            done
+          fi
+          echo "web_tag=$WEB_TAG" >> "$GITHUB_OUTPUT"
+          echo "app_tag=$APP_TAG" >> "$GITHUB_OUTPUT"
+          echo "db_tag=$DB_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Resolved tags
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "Resolved web tag: ${{ steps.parse_tags.outputs.web_tag }}"
+          echo "Resolved app tag: ${{ steps.parse_tags.outputs.app_tag }}"
+          echo "Resolved db tag: ${{ steps.parse_tags.outputs.db_tag }}"
+
       # ---------------- WEB TIER ----------------
       - name: Build Web Tier
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_web == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: ./web-tier
           file: ./web-tier/Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/web-tier:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/web-tier:${{ (github.event_name == 'workflow_dispatch' && steps.parse_tags.outputs.web_tag) || github.event.inputs.tag_web || 'latest' }}
 
       # ---------------- APP TIER ----------------
       - name: Build App Tier
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_app == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: ./app-tier
           file: ./app-tier/Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/app-tier:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/app-tier:${{ (github.event_name == 'workflow_dispatch' && steps.parse_tags.outputs.app_tag) || github.event.inputs.tag_app || 'latest' }}
 
       # ---------------- DB TIER ----------------
       - name: Build DB Tier
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_db == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: ./db-tier
           file: ./db-tier/Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/db-tier:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/db-tier:${{ (github.event_name == 'workflow_dispatch' && steps.parse_tags.outputs.db_tag) || github.event.inputs.tag_db || 'latest' }}
